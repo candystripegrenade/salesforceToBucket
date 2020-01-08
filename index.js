@@ -62,12 +62,6 @@ async function getBucket() {
   return bucket;
 }
 
-async function compileReports() {
-  const pushObjects = r => {
-    while (r.l)
-  }
-}
-
 /**
   Yields the sf report according to environmental cols definition
   @returns: { Promise }
