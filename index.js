@@ -13,7 +13,8 @@ const {
   SF_OBJECT,
   SF_USERNAME,
   SF_PASSWORD,
-  SF_TOKEN
+  SF_TOKEN,
+  GOOGLE_APPLICATION_CREDENTIALS
 } = process.env;
 
 /**
@@ -38,7 +39,7 @@ function getStorageClientOpts() {
   const {
     client_email,
     private_key
-  } = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+  } = JSON.parse(GOOGLE_APPLICATION_CREDENTIALS);
 
   return {
     projectId: PROJECT_NAME,
@@ -61,21 +62,46 @@ async function getBucket() {
   return bucket;
 }
 
+async function compileReports() {
+  const pushObjects = r => {
+    while (r.l)
+  }
+}
+
 /**
   Yields the sf report according to environmental cols definition
   @returns: { Promise }
 */
 async function getSFReport() {
+  let totalRecords = [];
+
   try {
     const authString = `${SF_PASSWORD}${SF_TOKEN}`;
     const conn = new jsforce.Connection();
     const client = await conn.login(SF_USERNAME, authString);
-    const report = await conn.sobject(SF_OBJECT).find();
+    const recordLength = await conn.sobject(SF_OBJECT).count();
+    const firstReport = await conn.sobject(SF_OBJECT).find().sort('CloseDate').limit(200).execute();
+    const pushObjects = (r) => {
+      while (r.length) {
+        totalRecords.push(r.shift());
+      }
+    };
 
-    return convertArrayToCSV(report);
+    pushObjects(firstReport);
+
+    while (totalRecords.length < recordLength) {
+      let target = totalRecords[totalRecords.length - 1];
+      let criteria = jsforce.Date.toDateLiteral(new Date(target.CloseDate));
+      let search = { 'CloseDate': { '$gte': criteria } };
+      let report = await conn.sobject(SF_OBJECT).find(search).sort('CloseDate').limit(200).execute();
+
+      pushObjects(report);
+    }
+
+    return convertArrayToCSV(totalRecords);
 
   } catch(e) {
-    throw new Error(`getFSReport: ${e}`);
+    throw new Error(`getSFReport: ${e}`);
   }
 }
 
@@ -114,8 +140,7 @@ async function getAndUploadReport(body) {
   @param: { Object } res
   @returns: { Response }
 */
-exports.uploadSFToBucket = (req, res) => {
-  getAndUploadReport(req.body)
-  .then(() => res.status(200).send('Uploaded SF Report'))
-  .catch(e => res.status(500).send(`Error: ${e}`));
+exports.uploadSFToBucket = (pubSubEvent, ctx) => {
+  //const parsed = Buffer.from(pubSubEvent.data, 'base64');
+  getAndUploadReport().then(console.log).catch(console.error);
 };
