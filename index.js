@@ -2,6 +2,7 @@
 const { Storage } = require('@google-cloud/storage');
 const { auth } = require('google-auth-library');
 const jsforce = require('jsforce');
+const moment = require('moment');
 const { convertArrayToCSV } = require('convert-array-to-csv');
 const { writeFile } = require('fs').promises;
 const { tmpdir } = require('os');
@@ -27,7 +28,7 @@ function getBucketOpts(filename) {
     destination: filename,
     resumable: false,
     private: true,
-    predefinedAcl: 'projectPrivate'
+    predefinedAcl: 'projectPrivate',
   };
 }
 
@@ -38,7 +39,7 @@ function getBucketOpts(filename) {
 function getStorageClientOpts() {
   const {
     client_email,
-    private_key
+    private_key,
   } = JSON.parse(GOOGLE_APPLICATION_CREDENTIALS);
 
   return {
@@ -48,6 +49,16 @@ function getStorageClientOpts() {
       private_key,
     }
   };
+}
+
+/**
+  Conforms all dates to an expected format, which is simply YYYY-MM-DD
+  @param: { String } d
+  @returns: { Obj }
+*/
+function manageDate(d) {
+  const mObj = moment(d.trim().replace(/\s|[^A-Za-z0-9]/g, '-').slice(0,12));
+  return mObj.format('YYYY-MM-DD');
 }
 
 /**
